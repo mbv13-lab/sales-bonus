@@ -46,7 +46,7 @@ function analyzeSalesData(data, options) {
 
   // Базовая статистика продавцов
   const sellerStats = data.sellers.map((seller) => ({
-    id: seller.id,
+    id: seller.id, // Сохраняем оригинальный тип ID
     name: `${seller.first_name} ${seller.last_name}`,
     revenue: 0,
     profit: 0,
@@ -81,7 +81,7 @@ function analyzeSalesData(data, options) {
       // Прибыль (profit)
       const profit = revenue - cost
 
-      // Аккумулирую данные
+      // Аккумулируем данные
       seller.revenue += revenue
       seller.profit += profit
 
@@ -104,13 +104,20 @@ function analyzeSalesData(data, options) {
 
     seller.top_products = Object.entries(seller.products_sold)
       .map(([sku, quantity]) => ({ sku, quantity }))
-      .sort((a, b) => b.quantity - a.quantity)
+      .sort((a, b) => {
+        // Если количество продаж разное — сортируем по убыванию количества
+        if (b.quantity !== a.quantity) {
+          return b.quantity - a.quantity
+        }
+        // Если количество одинаковое — сортируем по алфавиту артикула SKU
+        return a.sku.localeCompare(b.sku)
+      })
       .slice(0, 10)
   })
 
   // Финальный отчет с округлением
   return sellerStats.map((seller) => ({
-    seller_id: seller.id, //
+    seller_id: seller.id, // Оригинальный тип данных
     name: seller.name.trim(),
     revenue: +seller.revenue.toFixed(2),
     profit: +seller.profit.toFixed(2),
@@ -119,3 +126,4 @@ function analyzeSalesData(data, options) {
     bonus: +seller.bonus.toFixed(2),
   }))
 }
+
