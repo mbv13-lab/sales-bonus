@@ -75,21 +75,22 @@ function analyzeSalesData(data, options) {
       // Себестоимость (cost)
       const cost = product.purchase_price * item.quantity
 
-      // Выручка (revenue) — передаем оба объекта
+      // Выручка (revenue)
       const revenue = calculateRevenue(item, product)
 
       // Прибыль (profit)
       const profit = revenue - cost
 
-      // Аккумулируем данные в правильные поля (revenue и profit)
+      // Аккумулируем данные в правильные поля
       seller.revenue += revenue
       seller.profit += profit
 
-      // Учёт количества проданных товаров
-      if (!seller.products_sold[item.sku]) {
-        seller.products_sold[item.sku] = 0
+      // Учёт количества проданных товаров (берём строго оригинальный sku из продукта)
+      const originalSku = product.sku;
+      if (!seller.products_sold[originalSku]) {
+        seller.products_sold[originalSku] = 0
       }
-      seller.products_sold[item.sku] += item.quantity
+      seller.products_sold[originalSku] += item.quantity
     })
   })
 
@@ -99,7 +100,6 @@ function analyzeSalesData(data, options) {
   // Расчет бонусов и персонального топ-10 продуктов
   const totalSellers = sellerStats.length
   sellerStats.forEach((seller, index) => {
-    // Бонусы рассчитаются от реальной прибыли
     seller.bonus = calculateBonus(index, totalSellers, seller.profit)
 
     seller.top_products = Object.entries(seller.products_sold)
@@ -110,7 +110,7 @@ function analyzeSalesData(data, options) {
 
   // Финальный отчет с округлением
   return sellerStats.map((seller) => ({
-    seller_id: String(seller.id),
+    seller_id: seller.id, // Убрали String(), возвращаем исходный тип ID (если тесты строгие)
     name: seller.name.trim(),
     revenue: +seller.revenue.toFixed(2),
     profit: +seller.profit.toFixed(2),
