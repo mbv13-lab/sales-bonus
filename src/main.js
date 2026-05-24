@@ -85,7 +85,7 @@ function analyzeSalesData(data, options) {
       seller.revenue += revenue
       seller.profit += profit
 
-      // Учёт количества проданных товаров
+      // Количество проданных товаров
       const originalSku = product.sku
       if (!seller.products_sold[originalSku]) {
         seller.products_sold[originalSku] = 0
@@ -115,7 +115,6 @@ function analyzeSalesData(data, options) {
       .slice(0, 10)
   }) 
 
-  // Шаг 4. Сформируйте результат по ТЗ
   return sellerStats.map((seller) => ({
     seller_id: String(seller.id),
     name: seller.name.trim(),
