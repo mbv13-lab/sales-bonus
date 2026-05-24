@@ -1,27 +1,3 @@
-function calculateSimpleRevenue(purchase, product) {
-  "use strict"
-  const { discount = 0, quantity = 0 } = purchase
-  const sale_price = purchase.sale_price || product?.sale_price || 0
-
-  const decimalDiscount = discount / 100
-  const totalBeforeDiscount = sale_price * quantity
-  return totalBeforeDiscount * (1 - decimalDiscount)
-}
-
-function calculateBonusByProfit(index, total, profit) {
-  if (total <= 1 || profit <= 0) return 0
-
-  if (index === 0) {
-    return profit * 0.15
-  } else if (index === 1 || index === 2) {
-    return profit * 0.1
-  } else if (index === total - 1) {
-    return 0
-  } else {
-    return profit * 0.05
-  }
-}
-
 function analyzeSalesData(data, options) {
   // Шаг 1. Валидация входных данных
   if (
@@ -46,7 +22,7 @@ function analyzeSalesData(data, options) {
 
   // Базовая статистика продавцов
   const sellerStats = data.sellers.map((seller) => ({
-    id: String(seller.id),
+    id: String(seller.id), 
     name: `${seller.first_name} ${seller.last_name}`,
     revenue: 0,
     profit: 0,
@@ -79,11 +55,11 @@ function analyzeSalesData(data, options) {
       // Прибыль (profit)
       const profit = revenue - cost
 
-      // Аккумулируем данные в правильные поля
+      // Аккумулируем данные
       seller.revenue += revenue
       seller.profit += profit
 
-      // Учёт количества проданных товаров
+      // Учёт количества проданных товаров 
       const originalSku = product.sku
       if (!seller.products_sold[originalSku]) {
         seller.products_sold[originalSku] = 0
@@ -92,23 +68,24 @@ function analyzeSalesData(data, options) {
     })
   })
 
-  // Сортировка продавцов по прибыли
+  // Сортировка продавцов по прибыли (до округления)
   sellerStats.sort((a, b) => b.profit - a.profit)
 
   // Расчет бонусов и персонального топ-10 продуктов
   const totalSellers = sellerStats.length
   sellerStats.forEach((seller, index) => {
-    seller.bonus = calculateBonus(index, totalSellers, seller.profit)
+    
+    const roundedProfit = +seller.profit.toFixed(2)
+    seller.bonus = calculateBonus(index, totalSellers, roundedProfit)
 
     // Преобразуем и сортируем топ-10
     seller.top_products = Object.entries(seller.products_sold)
       .map(([sku, quantity]) => ({ sku, quantity }))
       .sort((a, b) => {
-
         if (b.quantity !== a.quantity) {
           return b.quantity - a.quantity
         }
-
+      
         return a.sku.localeCompare(b.sku)
       })
       .slice(0, 10)
