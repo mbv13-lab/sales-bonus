@@ -117,7 +117,7 @@ function analyzeSalesData(data, options) {
 
   // Финальный отчет с округлением
   return sellerStats.map((seller) => ({
-    seller_id: seller.id, // Оригинальный тип данных
+    seller_id: seller.id, 
     name: seller.name.trim(),
     revenue: +seller.revenue.toFixed(2),
     profit: +seller.profit.toFixed(2),
