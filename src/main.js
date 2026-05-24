@@ -46,7 +46,7 @@ function analyzeSalesData(data, options) {
 
   // Базовая статистика продавцов
   const sellerStats = data.sellers.map((seller) => ({
-    id: seller.id,
+    id: String(seller.id),
     name: `${seller.first_name} ${seller.last_name}`,
     revenue: 0,
     profit: 0,
@@ -54,13 +54,11 @@ function analyzeSalesData(data, options) {
     products_sold: {},
   }))
 
-  const sellerIndex = Object.fromEntries(
-    sellerStats.map((s) => [String(s.id), s])
-  )
+  const sellerIndex = Object.fromEntries(sellerStats.map((s) => [s.id, s]))
 
   // Шаг 3. Обработка чеков
   data.purchase_records.forEach((record) => {
-    const seller = sellerIndex[record.seller_id]
+    const seller = sellerIndex[String(record.seller_id)]
     if (!seller) return
 
     seller.sales_count += 1
@@ -75,21 +73,22 @@ function analyzeSalesData(data, options) {
       // Себестоимость (cost)
       const cost = product.purchase_price * item.quantity
 
-      // Выручка (revenue) — передаем оба объекта
+      // Выручка (revenue)
       const revenue = calculateRevenue(item, product)
 
       // Прибыль (profit)
       const profit = revenue - cost
 
-      // Аккумулируем данные в правильные поля (revenue и profit)
+      // Аккумулируем данные в правильные поля
       seller.revenue += revenue
       seller.profit += profit
 
       // Учёт количества проданных товаров
-      if (!seller.products_sold[item.sku]) {
-        seller.products_sold[item.sku] = 0
+      const originalSku = product.sku
+      if (!seller.products_sold[originalSku]) {
+        seller.products_sold[originalSku] = 0
       }
-      seller.products_sold[item.sku] += item.quantity
+      seller.products_sold[originalSku] += item.quantity
     })
   })
 
@@ -99,18 +98,25 @@ function analyzeSalesData(data, options) {
   // Расчет бонусов и персонального топ-10 продуктов
   const totalSellers = sellerStats.length
   sellerStats.forEach((seller, index) => {
-    // Бонусы рассчитаются от реальной прибыли
     seller.bonus = calculateBonus(index, totalSellers, seller.profit)
 
+    // Преобразуем и сортируем топ-10
     seller.top_products = Object.entries(seller.products_sold)
       .map(([sku, quantity]) => ({ sku, quantity }))
-      .sort((a, b) => b.quantity - a.quantity)
+      .sort((a, b) => {
+
+        if (b.quantity !== a.quantity) {
+          return b.quantity - a.quantity
+        }
+
+        return a.sku.localeCompare(b.sku)
+      })
       .slice(0, 10)
   })
 
   // Финальный отчет с округлением
   return sellerStats.map((seller) => ({
-    seller_id: String(seller.id),
+    seller_id: seller.id,
     name: seller.name.trim(),
     revenue: +seller.revenue.toFixed(2),
     profit: +seller.profit.toFixed(2),
@@ -119,4 +125,3 @@ function analyzeSalesData(data, options) {
     bonus: +seller.bonus.toFixed(2),
   }))
 }
-
