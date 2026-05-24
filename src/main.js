@@ -60,7 +60,7 @@ function analyzeSalesData(data, options) {
 
   // Шаг 3. Обработка чеков
   data.purchase_records.forEach((record) => {
-    const seller = sellerIndex[record.seller_id]
+    const seller = sellerIndex[String(record.seller_id)]
     if (!seller) return
 
     seller.sales_count += 1
@@ -81,12 +81,12 @@ function analyzeSalesData(data, options) {
       // Прибыль (profit)
       const profit = revenue - cost
 
-      // Аккумулируем данные в правильные поля
+      // Аккумулирую данные
       seller.revenue += revenue
       seller.profit += profit
 
-      // Учёт количества проданных товаров (берём строго оригинальный sku из продукта)
-      const originalSku = product.sku;
+      // Учёт количества проданных товаров
+      const originalSku = product.sku
       if (!seller.products_sold[originalSku]) {
         seller.products_sold[originalSku] = 0
       }
@@ -110,7 +110,7 @@ function analyzeSalesData(data, options) {
 
   // Финальный отчет с округлением
   return sellerStats.map((seller) => ({
-    seller_id: seller.id, // Убрали String(), возвращаем исходный тип ID (если тесты строгие)
+    seller_id: seller.id, //
     name: seller.name.trim(),
     revenue: +seller.revenue.toFixed(2),
     profit: +seller.profit.toFixed(2),
