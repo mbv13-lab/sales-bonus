@@ -44,7 +44,7 @@ function analyzeSalesData(data, options) {
     data.products.map((p) => [p.sku.trim().toLowerCase(), p])
   )
 
-  // Статистика продавцов
+  // Базовая статистика продавцов
   const sellerStats = data.sellers.map((seller) => ({
     id: seller.id,
     name: `${seller.first_name} ${seller.last_name}`,
@@ -60,7 +60,7 @@ function analyzeSalesData(data, options) {
 
   // Шаг 3. Обработка чеков
   data.purchase_records.forEach((record) => {
-    const seller = sellerIndex[String(record.seller_id)]
+    const seller = sellerIndex[record.seller_id]
     if (!seller) return
 
     seller.sales_count += 1
@@ -75,13 +75,13 @@ function analyzeSalesData(data, options) {
       // Себестоимость (cost)
       const cost = product.purchase_price * item.quantity
 
-      // Выручка (revenue)
+      // Выручка (revenue) — передаем оба объекта
       const revenue = calculateRevenue(item, product)
 
       // Прибыль (profit)
       const profit = revenue - cost
 
-      // Аккумулируем данные
+      // Аккумулируем данные (revenue и profit)
       seller.revenue += revenue
       seller.profit += profit
 
@@ -100,26 +100,24 @@ function analyzeSalesData(data, options) {
   // Расчет бонусов и персонального топ-10 продуктов
   const totalSellers = sellerStats.length
   sellerStats.forEach((seller, index) => {
-  
-    const roundedProfit = +seller.profit.toFixed(2)
-    seller.bonus = calculateBonus(index, totalSellers, roundedProfit)
+    // Сначала назначаем поле bonus по ТЗ
+    seller.bonus = calculateBonus(index, totalSellers, seller.profit)
 
-    // Преобразуем и строго сортируем топ-10
+    // Преобразуем объект в массив топ-10
     seller.top_products = Object.entries(seller.products_sold)
       .map(([sku, quantity]) => ({ sku, quantity }))
       .sort((a, b) => {
         if (b.quantity !== a.quantity) {
           return b.quantity - a.quantity
         }
-        // Дополнительная сортировка по алфавиту для одинакового количества
         return a.sku.localeCompare(b.sku)
       })
       .slice(0, 10)
-  })
+  }) 
 
-  // Финальный отчет с округлением по ТЗ
+  // Шаг 4. Сформируйте результат по ТЗ
   return sellerStats.map((seller) => ({
-    seller_id: seller.id,
+    seller_id: String(seller.id),
     name: seller.name.trim(),
     revenue: +seller.revenue.toFixed(2),
     profit: +seller.profit.toFixed(2),
