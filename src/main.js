@@ -1,53 +1,74 @@
 function calculateSimpleRevenue(purchase, product) {
   "use strict"
   const { discount = 0, quantity = 0 } = purchase
-  const sale_price = purchase.sale_price || product?.sale_price || 0
 
-  const decimalDiscount = discount / 100
-  const totalBeforeDiscount = sale_price * quantity
-  return totalBeforeDiscount * (1 - decimalDiscount)
+  if (typeof discount !== "number" || typeof quantity !== "number") {
+    throw new Error("Discount and quantity must be numbers")
+  }
+
+  const salePrice = purchase.sale_price ?? product?.sale_price ?? 0
+  const decimalDiscount = Math.max(0, Math.min(discount, 100)) / 100 
+  const totalBeforeDiscount = salePrice * quantity
+
+  return Math.max(0, totalBeforeDiscount * (1 - decimalDiscount)) 
 }
-
 function calculateBonusByProfit(index, total, profit) {
-  if (total <= 1 || profit <= 0) return 0
+  if (total <= 1 || profit <= 0 || index < 0) return 0
 
+  // Топ-1: 15 % от прибыли
   if (index === 0) {
     return profit * 0.15
-  } else if (index === 1 || index === 2) {
+  }
+  // Места 2–3: 10 % от прибыли
+  else if (index === 1 || index === 2) {
     return profit * 0.1
-  } else if (index === total - 1) {
+  }
+  // Последний продавец: без бонуса
+  else if (index === total - 1) {
     return 0
-  } else {
+  }
+  // Остальные: 5 % от прибыли
+  else {
     return profit * 0.05
   }
 }
-
 function analyzeSalesData(data, options) {
-  // Шаг 1. Валидация входных данных
-  if (
-    !data ||
-    !Array.isArray(data.purchase_records) ||
-    data.purchase_records.length === 0 ||
-    !Array.isArray(data.sellers) ||
-    data.sellers.length === 0 ||
-    !Array.isArray(data.products) ||
-    data.products.length === 0
-  ) {
-    throw new Error("Некорректные входные данные")
+  // Валидация входных данных
+  if (!data || typeof data !== "object") {
+    throw new Error("Некорректные входные данные: data должен быть объектом")
   }
 
-  const calculateRevenue = options?.calculateRevenue || calculateSimpleRevenue
-  const calculateBonus = options?.calculateBonus || calculateBonusByProfit
+  const requiredArrays = ["purchase_records", "sellers", "products"]
+  for (const key of requiredArrays) {
+    if (!Array.isArray(data[key]) || data[key].length === 0) {
+      throw new Error(
+        `Некорректные входные данные: ${key} отсутствует или пуст`
+      )
+    }
+  }
 
-  // Шаг 2. Создание необходимых индексов
+  // Проверка функций из options
+  const calculateRevenue =
+    typeof options?.calculateRevenue === "function"
+      ? options.calculateRevenue
+      : calculateSimpleRevenue
+  const calculateBonus =
+    typeof options?.calculateBonus === "function"
+      ? options.calculateBonus
+      : calculateBonusByProfit
+
+  // Нормализация SKU
+  const normalizeSku = (sku) => sku.trim().toLowerCase()
+
+  // Создание индексов
   const productIndex = Object.fromEntries(
-    data.products.map((p) => [p.sku.trim().toLowerCase(), p])
+    data.products.map((p) => [normalizeSku(p.sku), p])
   )
 
-  // Базовая статистика продавцов
+  // Статистика продавцов
   const sellerStats = data.sellers.map((seller) => ({
     id: seller.id,
-    name: `${seller.first_name} ${seller.last_name}`,
+    name: `${seller.first_name || ""} ${seller.last_name || ""}`.trim(),
     revenue: 0,
     profit: 0,
     sales_count: 0,
@@ -58,70 +79,58 @@ function analyzeSalesData(data, options) {
     sellerStats.map((s) => [String(s.id), s])
   )
 
-  // Шаг 3. Обработка чеков
+  // Обработка чеков
   data.purchase_records.forEach((record) => {
     const seller = sellerIndex[record.seller_id]
-    if (!seller) return
+    if (!seller) {
+      console.warn(`Продавец с ID ${record.seller_id} не найден`)
+      return
+    }
 
     seller.sales_count += 1
 
-    // Расчёт прибыли для каждого товара
     record.items.forEach((item) => {
-      const normalizedSku = item.sku.trim().toLowerCase()
+      const normalizedSku = normalizeSku(item.sku)
       const product = productIndex[normalizedSku]
 
-      if (!product) return
+      if (!product) {
+        console.warn(`Продукт с SKU ${item.sku} не найден`)
+        return
+      }
 
-      // Себестоимость (cost)
       const cost = product.purchase_price * item.quantity
-
-      // Выручка (revenue) — передаем оба объекта
       const revenue = calculateRevenue(item, product)
-
-      // Прибыль (profit)
       const profit = revenue - cost
 
-      // Аккумулируем данные (revenue и profit)
       seller.revenue += revenue
       seller.profit += profit
 
-      // Количество проданных товаров
       const originalSku = product.sku
-      if (!seller.products_sold[originalSku]) {
-        seller.products_sold[originalSku] = 0
-      }
-      seller.products_sold[originalSku] += item.quantity
+      seller.products_sold[originalSku] =
+        (seller.products_sold[originalSku] || 0) + item.quantity
     })
   })
 
-  // Сортировка продавцов по прибыли
+  // Сортировка и расчёт бонусов
   sellerStats.sort((a, b) => b.profit - a.profit)
-
-  // Расчет бонусов и персонального топ-10 продуктов
   const totalSellers = sellerStats.length
-  sellerStats.forEach((seller, index) => {
-    // Сначала назначаем поле bonus по ТЗ
-    seller.bonus = calculateBonus(index, totalSellers, seller.profit)
 
-    // Преобразуем объект в массив топ-10
+  sellerStats.forEach((seller, index) => {
+    seller.bonus = calculateBonus(index, totalSellers, seller.profit)
     seller.top_products = Object.entries(seller.products_sold)
       .map(([sku, quantity]) => ({ sku, quantity }))
-      .sort((a, b) => {
-        if (b.quantity !== a.quantity) {
-          return b.quantity - a.quantity
-        }
-        return a.sku.localeCompare(b.sku)
-      })
+      .sort((a, b) => b.quantity - a.quantity || a.sku.localeCompare(b.sku))
       .slice(0, 10)
-  }) 
+  })
 
+  // Финальный результат
   return sellerStats.map((seller) => ({
     seller_id: String(seller.id),
-    name: seller.name.trim(),
-    revenue: +seller.revenue.toFixed(2),
-    profit: +seller.profit.toFixed(2),
+    name: seller.name,
+    revenue: parseFloat(seller.revenue.toFixed(2)),
+    profit: parseFloat(seller.profit.toFixed(2)),
     sales_count: seller.sales_count,
     top_products: seller.top_products,
-    bonus: +seller.bonus.toFixed(2),
+    bonus: parseFloat(seller.bonus.toFixed(2)),
   }))
 }
