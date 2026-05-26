@@ -6,11 +6,9 @@ function calculateSimpleRevenue(purchase, product) {
   const decimalDiscount = discount / 100
   const totalBeforeDiscount = sale_price * quantity
 
-  // Возвращаем выручку с округлением до 2 знаков
   return +(totalBeforeDiscount * (1 - decimalDiscount)).toFixed(2)
 }
 
-// Функция принимает объект seller третьим аргументом
 function calculateBonusByProfit(index, total, seller) {
   const { profit = 0 } = seller || {}
 
@@ -28,7 +26,7 @@ function calculateBonusByProfit(index, total, seller) {
 }
 
 function analyzeSalesData(data, options) {
-  // Шаг 1. Валидация входных данных (Исправление 3)
+  // Шаг 1. Валидация входных данных
   if (
     !options ||
     typeof options.calculateRevenue !== "function" ||
@@ -76,11 +74,11 @@ function analyzeSalesData(data, options) {
       // Себестоимость (cost)
       const cost = product.purchase_price * item.quantity
 
-      // Считаем прибыль (profit) от округлённой выручки
+      // Расчет прибыли (profit) от округлённой выручки 
       const revenue = calculateRevenue(item, product)
       const profit = revenue - cost
 
-      // Аккумулируем данные (revenue и profit)
+      // Аккумуляция  данных 
       seller.revenue += revenue
       seller.profit += profit
 
@@ -102,10 +100,11 @@ function analyzeSalesData(data, options) {
     // Передаем объект seller целиком
     seller.bonus = calculateBonus(index, totalSellers, seller)
 
-    // Сортировка только по количеству проданного (без алфавитной)
+    // Сортировка только по количеству проданного и ограничение до ТОП-10 
     seller.top_products = Object.entries(seller.products_sold)
       .map(([sku, quantity]) => ({ sku, quantity }))
       .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 10)
   })
 
   // Шаг 4. Результат по ТЗ
