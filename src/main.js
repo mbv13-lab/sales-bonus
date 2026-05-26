@@ -75,8 +75,11 @@ function analyzeSalesData(data, options) {
       const cost = product.purchase_price * item.quantity
 
       // Расчет прибыли (profit) от округлённой выручки 
-      const revenue = calculateRevenue(item, product)
-      const profit = revenue - cost
+      const revenue = calculateRevenue(item, product);
+
+      const rawRevenue =
+        item.sale_price * item.quantity * (1 - (item.discount || 0) / 100);
+      const profit = rawRevenue - cost;
 
       // Аккумуляция  данных 
       seller.revenue += revenue
@@ -118,3 +121,4 @@ function analyzeSalesData(data, options) {
     bonus: +seller.bonus.toFixed(2),
   }))
 }
+
